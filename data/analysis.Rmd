@@ -1,0 +1,148 @@
+#Data analyses and figure creation for the YouTube Stroop Experiment
+
+###William H. Knapp III
+
+##Introduction
+
+This file was used to analyze data from my
+[YouTube Stroop Experiment](https://www.youtube.com/watch?v=djUgM2GjudE).
+All materials including consent, experimental tasks, and debriefing can
+be accessed following the previous link and following the links embedded
+within the video. **NOTE**: the links embedded in the vidoes are not
+available on some mobile devices that lack support for flash (e.g. some
+iPhones and iPads).
+
+These data represent observations from 53 participants who reported
+participating in existing conditions and emailed me their data. 1
+participant reported participating in condition 6, when there were
+only 4 conditions. This individual was excluded from this data set
+(see preprocessing.R).
+
+Although a number of variables are included in the raw data, only the
+variables representing subject, time in the video they completed the
+Stroop task (i.e. naming the color of the presented words), and
+congruence (i.e. congruent: color name matched the name of the word;
+and incongruent: color name didn't match the name of the word) were
+of primary interest. These data were analyzed and included in the 
+poster and presentation. Additional analyses were performed, but not
+included in these forms. These analyses appear at the end of this
+document.
+
+##Preparing data for analysis
+
+First we need to read in the data.
+
+```{r}
+d<-read.csv("rawdat.csv")
+```
+
+Now, let's look for any impossible reported times. The Stroop stimuli
+appeared in the videos at 29.0 seconds, so any reported times of 29 or
+less reflect an error. We'll identify the participants who made such
+errors and eliminate them from the data.
+
+```{r}
+badsubs<-unique(d$sub[d$rt<=29])
+d<-d[!(d$sub %in% badsubs),]
+```
+
+Now that we only have meaningful data, we'll transform the 
+quarter, group, and subject variables into factor variables.
+
+```{r}
+d$quarter<-as.factor(d$quarter)
+d$group<-as.factor(d$group)
+d$sub<-as.factor(d$sub)
+```
+
+##Primary Analysis
+
+Now we'll use a paired t-test to determine whether the Stroop
+effect occured for the participants when YouTube was the experimental
+medium. We'll also use a one-tailed test as the Stroop effect
+is demonstrated when participants are slower to identify colors
+in the presence of incongruent color words (e.g. the word "BLUE"
+appearing in the color red) than they are to identify colors in
+the presence of congruent color words (e.g. the word "BLUE" appearing
+in the color blue).
+
+```{r}
+t<-t.test(d$rt[d$congruence=="Incongruent"],
+       d$rt[d$congruence=="Congruent"],
+       paired=TRUE,
+       alternative="greater")
+t
+```
+
+Indeed, participants in this YouTube experiment showed the typical
+Stroop effect, t(`r t$parameter[[1]]`) = `r sprintf("%.2f",t$statistic[[1]])`,
+p `r ifelse(t$p.value[[1]]>.0001, sprintf("= %.4f",t$p.value[[1]]),"< .001")`.
+They were slower in the incongruent than they were in the congruent condition.
+
+##Figure
+
+To visualize this, I'm going to create a box plot comparing
+reported times for the congruent and incongruent conditions.
+
+```{r, eval=FALSE}
+library(ggplot2)
+```
+```{r,include=FALSE}
+library(ggplot2)
+```
+```{r}
+#Create and edit the box plot
+f<-ggplot(d, aes(x=congruence,y=rt))+
+  geom_boxplot()+
+  guides(fill=FALSE)+
+  labs(x="Word Color Congruence", y="Time Completed (seconds)")+
+  scale_x_discrete(breaks=c("Congruent","Incongruent"),labels=c("Congruent","Incongruent"))+
+  theme(axis.title.x=element_text(size=20,face="bold",vjust=-.8))+
+  theme(axis.title.y=element_text(size=20,face="bold",vjust=1.5))+
+  theme(axis.text.x=element_text(size=18,face="bold",color="black"))+
+  theme(axis.text.y=element_text(size=18,face="bold",color="black"))+
+  theme(panel.border=element_blank(), axis.line=element_line())+
+  theme(panel.grid.major.x=element_blank())+
+  theme(panel.grid.major.y=element_line(color="darkgrey"))+
+  theme(panel.grid.minor.y=element_blank())
+
+#Plot the box plot
+f
+```
+
+I'll use this figure in the poster, so I need to save it.
+
+```{r}
+ggsave(filename="fig1.png",width=15,height=15, units="cm",dpi=300)
+```
+
+##Supplementary Analyses
+
+The following analyses were performed to get a better sense of the data,
+but they will not be included in the poster.
+
+Let's see if the order of conditions affected reported times or
+interacted with congruence.
+
+```{r}
+summary(aov(rt~congruence*order+Error(sub/congruence), data=d))
+```
+
+Nope, order didn't matter.
+
+Let's see how many of the participants that were included in the previous
+analyses demonstrated the effect.
+
+```{r}
+showing<-sum(d$rt[d$congruence=="Incongruent"]>d$rt[d$congruence=="Congruent"])
+n<-length(d$rt[d$congruence=="Incongruent"])
+showing/n
+```
+
+`r sprintf("%.1f",showing/n*100)`% of the participants (i.e. `r showing`/`r n`)
+demonstrated the effect.
+
+##Summary
+
+For powerful effects, YouTube appears to be a viable experimental
+platform.
